@@ -14,17 +14,25 @@ class WhatsappModel extends Model
 
     public function block_action_user($path = ""){
         return view( 'Core\Whatsapp\Views\action_user', [ 'config' => $this->config ] );
-    }
-
-    public function block_plans(){
+    }    public function block_plans(){
+        // Validate config is array before accessing
+        if (!is_array($this->config)) {
+            return [
+                "tab" => 15,
+                "position" => 800,
+                "label" => __("Whatsapp tool"),
+                "items" => []
+            ];
+        }
+        
         return [
             "tab" => 15,
             "position" => 800,
             "label" => __("Whatsapp tool"),
             "items" => [
                 [
-                    "id" => $this->config['id'],
-                    "name" => $this->config['name'],
+                    "id" => isset($this->config['id']) ? $this->config['id'] : 'whatsapp',
+                    "name" => isset($this->config['name']) ? $this->config['name'] : 'WhatsApp',
                 ],
             ]
         ];

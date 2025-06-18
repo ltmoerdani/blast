@@ -216,12 +216,14 @@ if (!function_exists('utf8ize')) {
     }
 }
 
-if(!function_exists('add_script_to_header')){
-    function add_script_to_header(){
+if(!function_exists('add_script_to_header')){    function add_script_to_header(){
         $items = get_blocks("add_script_to_header", false);
         if(!empty($items)){
             foreach ($items as $key => $value) {
-                _ec( $value['data'] );
+                // Check if 'data' key exists before accessing
+                if (is_array($value) && isset($value['data'])) {
+                    _ec( $value['data'] );
+                }
             }
         }
     }
@@ -233,7 +235,10 @@ if(!function_exists('add_script_to_footer')){
 
         if(!empty($items)){
             foreach ($items as $key => $value) {
-                _ec( $value['data'] );
+                // Check if 'data' key exists before accessing
+                if (is_array($value) && isset($value['data'])) {
+                    _ec( $value['data'] );
+                }
             }
         }
     }
@@ -630,41 +635,71 @@ if(!function_exists('get_blocks')){
         {
             if( !empty($module_paths) ){
                 foreach ($module_paths as $key => $module_path) {
-                    $config_path = $module_path . "/Config.php";
-                    $config_item = include $config_path;
+                    try {
+                        $config_path = $module_path . "/Config.php";
+                        
+                        // Check if config file exists before including
+                        if (!file_exists($config_path)) {
+                            continue;
+                        }
+                        
+                        $config_item = include $config_path;
+                        
+                        // Ensure config_item is an array
+                        if (!is_array($config_item)) {
+                            continue;
+                        }
 
-                    $model_paths = $module_path . "/Models/";
-                    $model_files = glob( $model_paths . '*' );
+                        $model_paths = $module_path . "/Models/";
+                        $model_files = glob( $model_paths . '*' );
 
-                    if ( !empty( $model_files ) )
-                    {
-                        foreach ( $model_files as $model_file )
+                        if ( !empty( $model_files ) )
                         {
-                            $model_content = get_all_functions($model_file);
-                            if ( in_array($block_name, $model_content) )
-                            {   
-                                include_once $model_file;
-                                
-                                $class = str_replace(COREPATH, "\\", $model_file);
-                                $class = str_replace(".php", "", $class);
-                                $class = str_replace("/", "\\", $class);
-                                $class = ucfirst($class);
-                                $data = new $class;
+                            foreach ( $model_files as $model_file )
+                            {
+                                $model_content = get_all_functions($model_file);
+                                if ( in_array($block_name, $model_content) )
+                                {   
+                                    include_once $model_file;
+                                    
+                                    $class = str_replace(COREPATH, "\\", $model_file);
+                                    $class = str_replace(".php", "", $class);
+                                    $class = str_replace("/", "\\", $class);
+                                    $class = ucfirst($class);
+                                    
+                                    // Check if class exists before instantiation
+                                    if (!class_exists($class)) {
+                                        continue;
+                                    }
+                                    
+                                    $data = new $class;
+                                    
+                                    // Check if method exists before calling
+                                    if (!method_exists($data, $block_name)) {
+                                        continue;
+                                    }
 
-                                $name = explode("\\", $class);
-                                $config_item["data"] = $data->$block_name();
-                                
-                                if(!$get_all){
-                                    if(!$check_permissions || ( $check_permissions && permission($config_item['id']) ) )
-                                        $list_items[] = $config_item;
+                                    $name = explode("\\", $class);
+                                    $config_item["data"] = $data->$block_name();
+                                    
+                                    if(!$get_all){
+                                        if(!$check_permissions || ( $check_permissions && isset($config_item['id']) && permission($config_item['id']) ) )
+                                            $list_items[] = $config_item;
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if($get_all){
-                        if(!$check_permissions || ( $check_permissions && permission($config_item['id']) ) )
-                            $list_items[] = $config_item;
+                        if($get_all){
+                            if(!$check_permissions || ( $check_permissions && isset($config_item['id']) && permission($config_item['id']) ) )
+                                $list_items[] = $config_item;
+                        }
+                    } catch (Exception $e) {
+                        // Log error and continue
+                        if (function_exists('log_message')) {
+                            log_message('error', 'get_blocks error: ' . $e->getMessage());
+                        }
+                        continue;
                     }
                 }
             }
@@ -758,8 +793,32 @@ if(!function_exists('get')){
 
 if(!function_exists('request_service')){
     function request_service($name){
-        $request = \Config\Services::request();
-        return $request->$name;
+        try {
+            $request = \Config\Services::request();
+            
+            // Check if property exists before accessing
+            if (property_exists($request, $name)) {
+                return $request->$name;
+            }
+            
+            // Special handling for language property
+            if ($name === 'language') {
+                // Try to get from session first
+                if (function_exists('get_session') && get_session('language')) {
+                    return json_decode(get_session('language'));
+                }
+                // Return default language object
+                return (object)["dir" => "ltr", "name" => "English", "code" => "en", "icon" => "flag-icon flag-icon-us"];
+            }
+            
+            return null;
+        } catch (Exception $e) {
+            // Log error and return null
+            if (function_exists('log_message')) {
+                log_message('error', 'request_service error: ' . $e->getMessage());
+            }
+            return null;
+        }
     }
 }
 

@@ -30,3 +30,15 @@ defined('SHOW_DEBUG_BACKTRACE') || define('SHOW_DEBUG_BACKTRACE', true);
  | items. It can always be used within your own application too.
  */
 defined('CI_DEBUG') || define('CI_DEBUG', true);
+
+/*
+ |--------------------------------------------------------------------------
+ | PHP 8.2+ DYNAMIC PROPERTIES
+ |--------------------------------------------------------------------------
+ | Suppress deprecation warnings for dynamic properties in PHP 8.2+
+ | This is needed for legacy code compatibility
+ */
+if (version_compare(PHP_VERSION, '8.2.0', '>=')) {
+    // Exclude deprecation warnings that are not critical for our application
+    error_reporting(E_ALL & ~E_DEPRECATED);
+}

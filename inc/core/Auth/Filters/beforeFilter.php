@@ -4,7 +4,8 @@ $page = uri("segment", 1);
 $router = service('router'); 
 $controller  = $router->controllerName();  
 $controller  = explode("\\", $controller);  
-$controller = $controller[2];
+// Safe array access with fallback
+$controller = isset($controller[2]) ? $controller[2] : 'Home';
 
 $router = service('router');
 $method = $router->methodName();
